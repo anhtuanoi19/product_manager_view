@@ -1,12 +1,9 @@
 <!-- productTable.vue -->
 <template>
-  <el-table ref="tableRef" :data="listProduct" style="width: 100%">
-    <el-table-column prop="productCode" label="Product code" />
-    <el-table-column prop="productName" label="Product name" />
-    <el-table-column prop="categoryName" label="Category" />
-    <el-table-column prop="quantity" label="Quantity" />
+  <el-table ref="tableRef" :data="listCategory" style="width: 100%">
+    <el-table-column prop="name" label="Catego code" />
+    <el-table-column prop="categoryCode" label="Catego name" />
     <el-table-column prop="description" label="Description" />
-    <el-table-column prop="price" label="Price" />
     <el-table-column
       prop="status"
       label="Status"
@@ -27,7 +24,7 @@
         :style="{backgroundColor: '#a0cfff'}"
         :icon="Edit"
         circle
-        @click="editProduct(scope.row)"
+        @click="editCategory(scope.row)"
       />
       <el-button
         :style="{backgroundColor: '#fab6b6'}"
@@ -37,7 +34,7 @@
       <el-button
         :style="{backgroundColor: '#d1edc4'}"
         circle
-        @click="viewProduct(scope.row)"
+        @click="viewCategory(scope.row)"
       >
         <el-icon>
           <Document />
@@ -52,23 +49,23 @@ import { defineProps, defineEmits } from 'vue';
 import { Edit, Delete, Document } from '@element-plus/icons-vue';
 
 const props = defineProps({
-  listProduct: Array // Nhận dữ liệu sản phẩm từ parent component
+  listCategory: Array // Nhận dữ liệu sản phẩm từ parent component
 });
 
 const emit = defineEmits<{
-  (e: 'edit-product', product: any): void
-  (e: 'view-product', product: any): void
+  (e: 'edit-category', category: any): void
+  (e: 'view-category', category: any): void
 }>()
 
-const viewProduct = (product: any) => {
-  emit('view-product', product)
+const editCategory = (category: any) => {
+  emit('edit-category', category)
 }
 
-const editProduct = (product: any) => {
-  emit('edit-product', product)
+const viewCategory = (category: any) => {
+  emit('view-category', category)
 }
 </script>
 
 <style scoped>
-/* Add any specific styles for ProductTable here */
+/* Add any specific styles for CategoTable here */
 </style>

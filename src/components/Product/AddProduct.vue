@@ -1,26 +1,52 @@
 <template>
   <el-row>
+    <!-- Phần upload hình ảnh -->
     <el-col :span="12">
-      <div class="demo-image__placeholder">
-        <div class="block">
-          <el-image :src="src" />
-          <el-input v-model="src" placeholder="Enter image URL" style="width: 300px"/>
+      <div class="image-upload-container">
+        <input
+          ref="fileInputRef"
+          type="file"
+          multiple
+          @change="handleFileChange"
+          style="display: none;"
+        />
+        <div
+          v-if="imagePreviews.length === 0"
+          class="upload-placeholder"
+          @click="triggerFileInput"
+        >
+          <el-button type="primary">Upload Images</el-button>
         </div>
-        <div class="block">
-          <el-image :src="src1" />
-          <el-input v-model="src1" placeholder="Enter image URL" style="width: 300px"/>
+        <div v-else class="image-grid">
+          <div v-for="(image, index) in imagePreviews" :key="index" class="image-item">
+            <img :src="image" alt="preview" />
+            <el-button
+              type="danger"
+              class="remove-button"
+              @click="removeImage(index)"
+            >
+              Remove
+            </el-button>
+          </div>
         </div>
-        <div class="block">
-          <el-image :src="src2" />
-          <el-input v-model="src2" placeholder="Enter image URL" style="width: 300px"/>
-        </div>
-        <div class="block">
-          <el-image :src="src3" />
-          <el-input v-model="src3" placeholder="Enter image URL" style="width: 300px" />
-        </div>
+      </div>
+
+      <div class="text">
+        <p><strong>Name:</strong> {{ ruleForm.name }}</p>
+        <p><strong>Price:</strong> {{ ruleForm.price }}</p>
+        <p><strong>Category Name:</strong> {{ getCategoryNames() }}</p>
+        <p><strong>Quantity:</strong> {{ ruleForm.quantity }}</p>
+        <p><strong>Description:</strong> {{ ruleForm.description }}</p>
+        <p>
+          <strong>Status:</strong>
+          <span :class="ruleForm.status ? 'status-active' : 'status-inactive'">
+          {{ ruleForm.status ? ' Active' : ' Inactive' }}
+          </span>
+        </p>
       </div>
     </el-col>
 
+    <!-- Phần form thông tin sản phẩm -->
     <el-col :span="12">
       <el-form
         ref="ruleFormRef"
@@ -37,11 +63,11 @@
         </el-form-item>
 
         <el-form-item label="Price" prop="price">
-          <el-input v-model="ruleForm.price" />
+          <el-input v-model.number="ruleForm.price" type="number" />
         </el-form-item>
 
         <el-form-item label="Quantity" prop="quantity">
-          <el-input v-model="ruleForm.quantity" />
+          <el-input v-model.number="ruleForm.quantity" type="number" />
         </el-form-item>
 
         <el-row :gutter="10">
@@ -69,7 +95,7 @@
           </el-col>
           <el-col :span="3">
             <el-button plain @click="dialogFormVisible = true">
-              Thêm
+              Add
             </el-button>
           </el-col>
         </el-row>
@@ -97,13 +123,13 @@
   </el-row>
 
   <el-dialog v-model="dialogFormVisible" title="Add Category" width="500">
-    <el-form :model="form" label-width="auto" style="max-width: 600px">
-      <el-form-item label="Category name" prop="name">
-        <el-input v-model="form.name" />
-      </el-form-item>
-
+    <el-form :model="form" label-width="auto" style="max-width: 600px" :rules="categoryRules">
       <el-form-item label="Category code" prop="categoryCode">
         <el-input v-model="form.categoryCode" />
+      </el-form-item>
+
+      <el-form-item label="Category name" prop="name">
+        <el-input v-model="form.name" />
       </el-form-item>
 
       <el-form-item label="Instant delivery" prop="status">
@@ -113,7 +139,6 @@
       <el-form-item label="Description" prop="description">
         <el-input v-model="form.description" type="textarea" />
       </el-form-item>
-
     </el-form>
     <template #footer>
       <div class="dialog-footer">
@@ -143,11 +168,11 @@
   </el-dialog>
 </template>
 
+
 <script lang="ts" setup>
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessageBox, ElNotification, type FormInstance, type FormRules } from 'element-plus'
 import axios from 'axios'
-import { watch } from 'vue'
 
 const form = reactive({
   categoryCode: '',
@@ -156,6 +181,13 @@ const form = reactive({
   status: false
 })
 
+const getCategoryNames = () => {
+  return ruleForm.category.map(catId => {
+    const category = categoryOptions.value.find(option => option.id === catId)
+    return category ? category.name : ''
+  }).join(', ')
+}
+
 interface RuleForm {
   name: string
   price: number
@@ -163,15 +195,11 @@ interface RuleForm {
   category: number[]
   status: number
   description: string
-  images: string[]
-}
-
-interface Images {
-  url: string
+  images: File[]
 }
 
 interface Category {
-  id: number
+  id: number // Ensure the id is treated as a number
   categoryCode: string
   name: string
   status: string
@@ -180,18 +208,14 @@ interface Category {
 
 const CATEGORY_URL = 'http://localhost:8080/api/category'
 const PRODUCT_URL = 'http://localhost:8080/api/product'
-const src = ref<string>('')
-const src1 = ref<string>('')
-const src2 = ref<string>('')
-const src3 = ref<string>('')
+
 const dialogFormVisible = ref(false)
-const formLabelWidth = '140px'
-const images = ref<Images[]>([])
+const dialogVisible = ref(false)
+const imagePreviews = ref<string[]>([])
 const categoryOptions = ref<Category[]>([])
 
 const formSize = ref('default')
 const ruleFormRef = ref<FormInstance>()
-const dialogVisible = ref(false)
 const ruleForm = reactive<RuleForm>({
   name: '',
   price: 0,
@@ -200,50 +224,74 @@ const ruleForm = reactive<RuleForm>({
   status: 0,
   description: '',
   images: []
-})
+});
+
 
 const submitForm = async (formEl: FormInstance | undefined) => {
-  if (!formEl) return;
+  if (!formEl) return
+
+  const validCategories = ruleForm.category.map(cat => {
+    const existingCategory = categoryOptions.value.find(option => option.id === cat)
+    return existingCategory || { id: cat }
+  })
 
   await formEl.validate(async (valid) => {
-    const productData = {
-      name: ruleForm.name,
-      price: ruleForm.price,
-      quantity: ruleForm.quantity,
-      categories: ruleForm.category,
-      status: ruleForm.status,
-      description: ruleForm.description,
-      images: images.value
-    };
-
     if (valid) {
+      // Tạo đối tượng FormData và thêm dữ liệu sản phẩm
+      const formData = new FormData()
+
+      // Thêm dữ liệu sản phẩm dưới dạng JSON
+      formData.append('product', JSON.stringify({
+        name: ruleForm.name,
+        description: ruleForm.description,
+        price: ruleForm.price,
+        quantity: ruleForm.quantity,
+        status: ruleForm.status,
+        createdDate: new Date().toISOString(), // Thay đổi ngày giờ nếu cần
+        modifiedDate: new Date().toISOString(), // Thay đổi ngày giờ nếu cần
+        createdBy: 'admin', // Điều chỉnh theo người tạo nếu cần
+        modifiedBy: 'admin', // Điều chỉnh theo người sửa nếu cần
+        categories: validCategories,
+        images: [] // Thay đổi nếu bạn cần gửi dữ liệu hình ảnh khác
+      }))
+
+      // Thêm các tệp tin vào FormData
+      ruleForm.images.forEach((file) => {
+        formData.append('files', file)
+      })
+
       try {
-        await axios.post(PRODUCT_URL, productData);
+        // Gửi yêu cầu POST đến API
+        await axios.post(`${PRODUCT_URL}/create`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        })
         ElNotification({
           title: 'Success',
           message: 'Product created successfully',
-          type: 'success',
-        });
+          type: 'success'
+        })
 
-        dialogVisible.value = false;
-        resetForm(formEl);
+        dialogVisible.value = false
+        resetForm(formEl)
 
       } catch (error) {
         ElNotification({
           title: 'Error',
           message: 'Failed to create product',
-          type: 'error',
-        });
+          type: 'error'
+        })
       }
     } else {
       ElNotification({
         title: 'Error',
         message: 'Form validation failed',
-        type: 'error',
-      });
+        type: 'error'
+      })
     }
-  });
-};
+  })
+}
 
 const confirmSubmit = () => {
   dialogVisible.value = true
@@ -258,6 +306,38 @@ const handleClose = (done: () => void) => {
       // Do nothing on cancel
     })
 }
+
+const handleFileChange = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  if (target.files) {
+    ruleForm.images = Array.from(target.files)
+    imagePreviews.value = ruleForm.images.map(file => URL.createObjectURL(file))
+  }
+}
+
+const removeImage = (index: number) => {
+  ruleForm.images.splice(index, 1)
+  imagePreviews.value.splice(index, 1)
+}
+
+const categoryRules = reactive({
+  categoryCode: [
+    { required: true, message: 'Vui lòng nhập mã danh mục', trigger: 'blur' },
+    { max: 100, message: 'Mô tả không được vượt quá 100 ký tự', trigger: 'blur' }
+
+  ],
+  name: [
+    { required: true, message: 'Vui lòng nhập tên danh mục', trigger: 'blur' },
+    { max: 100, message: 'Mô tả không được vượt quá 100 ký tự', trigger: 'blur' }
+
+  ],
+  description: [
+    { required: true, message: 'Vui lòng nhập mô tả danh mục', trigger: 'blur' },
+    { max: 255, message: 'Mô tả không được vượt quá 255 ký tự', trigger: 'blur' }
+  ]
+})
+
+const categoryFormRef = ref<FormInstance>()
 
 const addCategory = () => {
   const newCategory = {
@@ -279,24 +359,7 @@ const addCategory = () => {
 
   // Close the dialog
   dialogFormVisible.value = false;
-};
-
-watch([src, src1, src2, src3], ([newSrc, newSrc1, newSrc2, newSrc3]) => {
-  images.value = []
-
-  if (newSrc) {
-    images.value.push({ url: newSrc })
-  }
-  if (newSrc1) {
-    images.value.push({ url: newSrc1 })
-  }
-  if (newSrc2) {
-    images.value.push({ url: newSrc2 })
-  }
-  if (newSrc3) {
-    images.value.push({ url: newSrc3 })
-  }
-})
+}
 
 const fetchCategoryOptions = async () => {
   try {
@@ -309,29 +372,38 @@ const fetchCategoryOptions = async () => {
 
 const rules = reactive<FormRules<RuleForm>>({
   name: [
-    { required: true, message: 'Please input product name', trigger: 'blur' }
+    { required: true, message: 'Vui lòng nhập tên sản phẩm', trigger: 'blur' },
+    { max: 100, message: 'Tên sản phẩm không được vượt quá 100 ký tự', trigger: 'blur' },
+
   ],
   price: [
-    { required: true, type: 'number', message: 'Please input price', trigger: 'blur' }
+    { required: true, message: 'Vui lòng nhập giá', trigger: 'blur' },
+    { type: 'number', message: 'Giá phải là một số', trigger: ['blur', 'change'] },
   ],
   quantity: [
-    { required: true, type: 'number', message: 'Please input quantity', trigger: 'blur' }
+    { required: true, message: 'Vui lòng nhập số lượng', trigger: 'blur' },
+    { type: 'number', message: 'Số lượng phải là một số', trigger: ['blur', 'change'] },
   ],
   category: [
-    { type: 'array', required: true, message: 'Please select at least one category', trigger: 'change' }
-  ],
-  status: [
-    { required: true, type: 'number', message: 'Please select status', trigger: 'change' }
+    { type: 'array', required: true, message: 'Vui lòng chọn ít nhất một danh mục', trigger: 'change' }
   ],
   description: [
-    { required: true, message: 'Please input description', trigger: 'blur' }
+    { required: true, message: 'Vui lòng nhập mô tả', trigger: 'blur' },
+    { max: 255, message: 'Mô tả không được vượt quá 255 ký tự', trigger: 'blur' }
   ]
-})
+});
 
 const resetForm = (formEl: FormInstance | undefined) => {
   if (formEl) {
     formEl.resetFields()
+    imagePreviews.value = [] // Xóa ảnh ở phần xem trước
+    ruleForm.images = []
   }
+}
+
+const triggerFileInput = () => {
+  const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement
+  fileInput?.click()
 }
 
 onMounted(() => {
@@ -339,11 +411,62 @@ onMounted(() => {
 })
 </script>
 
+
 <style scoped>
-.demo-image__placeholder {
+.image-upload-container {
   text-align: center;
+  margin-top: 20px;
 }
-.block {
-  margin-bottom: 20px;
+
+.upload-placeholder {
+  padding: 30px;
+  border: 1px dashed #dcdfe6;
+  border-radius: 4px;
+  background-color: #f5f7fa;
+}
+
+.upload-placeholder .el-button {
+  margin-top: 20px;
+}
+
+.image-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+
+.image-item {
+  position: relative;
+  width: 100px; /* Bạn có thể thay đổi kích thước này nếu cần */
+  height: 100px;
+  box-sizing: border-box;
+}
+
+.image-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.remove-button {
+  position: absolute;
+  bottom: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.text {
+  margin-top: 20px;
+  font-size: 14px;
+}
+
+.status-active {
+  color: #00ff8e;
+}
+
+.status-inactive {
+  color: #fc8484;
 }
 </style>
+

@@ -6,7 +6,6 @@
         type="card"
         class="custom-tabs"
         closable
-        @click="fetchProduct"
         lazy
         @tab-remove="handleTabRemove"
       >
@@ -16,33 +15,45 @@
           :label="item.title"
           :name="item.name"
         >
+          <div v-if="editableTabsValue === defaultTabName" class="search-container">
+            <el-input
+              v-model="search"
+              style="width: 340px"
+              size="large"
+              placeholder="Tìm kiếm sản phẩm"
+              :suffix-icon="Search"
+            />
+            <div class="button-container">
+              <el-button
+                :icon="Download"
+                :style="{ backgroundColor: '#79bbff' }"
+                style="height: 40px; color: white"
+                @click="exportProducts"
+              >
+                Xuất danh sách
+              </el-button>
+              <el-button
+                :icon="Plus"
+                :style="{ backgroundColor: '#79bbff' }"
+                style="height: 40px; color: white"
+                @click="addTab('Thêm sản phẩm', AddProduct)"
+              >
+                Thêm sản phẩm
+              </el-button>
+            </div>
+          </div>
 
+          <component
+            :is="item.component"
+            v-bind="item.props"
+            :productId="currentProductId"
+            :listProduct="listProduct"
+            @edit-product="handleEditProduct"
+            @view-product="handleViewProduct"
+            @add-product-success="handleAddProductSuccess"
+          />
         </el-tab-pane>
       </el-tabs>
-
-      <div v-if="editableTabsValue === defaultTabName" class="container">
-        <el-input
-          v-model="search"
-          style="width: 340px"
-          size="large"
-          placeholder="Tìm kiếm sản phẩm"
-          :suffix-icon="Search"
-        />
-        <div class="button-container">
-          <el-button :icon="Download" :style="{backgroundColor: '#79bbff'}" style="height: 40px; color: white">
-            Xuất danh sách
-          </el-button>
-          <el-button :icon="Plus" :style="{backgroundColor: '#79bbff'}" style="height: 40px; color: white"
-                     @click="addTab('Thêm sản phẩm', AddProduct)" >
-            Thêm sản phẩm
-          </el-button>
-        </div>
-      </div>
-
-      <div class="table-container">
-        <component :is="editableTabs.find(tab => tab.name === editableTabsValue)?.component" :listProduct="listProduct"
-                   @edit-product="handleEditProduct" @view-product="handleViewProduct" />
-      </div>
 
       <el-pagination
         v-if="editableTabsValue === defaultTabName"
@@ -60,12 +71,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import axios from 'axios'
 import ProductTable from '@/components/Product/ProductTable.vue'
 import AddProduct from '@/components/Product/AddProduct.vue'
+import ProductDetail from '@/components/Product/ProductDetail.vue'
 import { Download, Plus, Search } from '@element-plus/icons-vue'
-import type { FormInstance } from 'element-plus'
 
 const search = ref('')
 const PRODUCT_URL = 'http://localhost:8080/api/product'
@@ -81,12 +92,14 @@ const defaultTab = {
   component: ProductTable
 }
 
+const currentProductId = ref<number | null>(null)
+
 const fetchProduct = async (page = 1) => {
   try {
     const { data } = await axios.get(PRODUCT_URL, {
       params: {
         page: page - 1,
-        size: pageSize.value
+        size: pageSize.value,
       }
     })
     listProduct.value = data.result.content
@@ -95,7 +108,6 @@ const fetchProduct = async (page = 1) => {
     console.log(err)
   }
 }
-
 
 const handlePageChange = (page: number) => {
   currentPages.value = page
@@ -107,28 +119,30 @@ const handlePageSizeChange = (size: number) => {
   fetchProduct(1)
 }
 
-const indexMethod = (index: number) => {
-  return (currentPages.value - 1) * pageSize.value + index + 1
+type Tab = {
+  title: string;
+  name: string;
+  component: any;
+  props?: Record<string, any>;
 }
 
 let tabIndex = 2
 const editableTabsValue = ref(defaultTabName)
-const editableTabs = ref([
-  defaultTab
-])
+const editableTabs = ref<Tab[]>([defaultTab]);
 
-const addTab = (tabTitle: string, component: any = null) => {
+const addTab = (tabTitle: string, component: any = null, props: Record<string, any> = {}) => {
   const newTabName = `${++tabIndex}`
   editableTabs.value.push({
     title: tabTitle,
     name: newTabName,
-    component
+    component,
+    props
   })
   editableTabsValue.value = newTabName
 }
 
 const handleTabRemove = (targetName: string) => {
-  if (targetName === defaultTabName) return // Prevent removal of default tab
+  if (targetName === defaultTabName) return
 
   const tabs = editableTabs.value
   let activeName = editableTabsValue.value
@@ -148,13 +162,35 @@ const handleTabRemove = (targetName: string) => {
 }
 
 const handleEditProduct = (product: any) => {
-  console.log('Edit product', product)
-  addTab('Sửa sản phẩm', AddProduct)
+  currentProductId.value = product.id
+  addTab('Sửa sản phẩm', ProductDetail, { isEditMode: true })
 }
 
 const handleViewProduct = (product: any) => {
-  console.log('View product', product)
-  addTab('Chi tiết sản phẩm', AddProduct)
+  currentProductId.value = product.id
+  addTab('Chi tiết sản phẩm', ProductDetail, { isEditMode: false })
+}
+
+const handleAddProductSuccess = () => {
+  editableTabs.value = editableTabs.value.filter(tab => tab.name !== 'AddProduct')
+  editableTabsValue.value = defaultTabName
+  fetchProduct()
+}
+
+const exportProducts = async () => {
+  try {
+    const response = await axios.get(`${PRODUCT_URL}/export`, {
+      responseType: 'blob'
+    })
+    const url = window.URL.createObjectURL(new Blob([response.data]))
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', 'products.xlsx')
+    document.body.appendChild(link)
+    link.click()
+  } catch (error) {
+    console.error('Error exporting products:', error)
+  }
 }
 
 onMounted(() => {
@@ -163,17 +199,18 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.container {
+.search-container {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: flex-start;
   margin-bottom: 16px;
 }
 
 .button-container {
   display: flex;
   gap: 8px;
-  margin-bottom: 16px;
+  margin-top: 8px;
+  margin-left: auto; /* Ensure buttons are aligned to the end of the container */
 }
 
 .table-container {
