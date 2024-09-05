@@ -64,7 +64,7 @@
       <el-col :span="12">
         <el-form :model="product" label-width="120px" class="product-info-form" rules="rules" ref="formRef">
           <el-form-item label="Mã sản phẩm">
-            <el-input v-model="product.productCode" :disabled="!isEditMode" readonly/>
+            <el-input v-model="product.productCode" disabled/>
           </el-form-item>
           <el-form-item label="Tên sản phẩm">
             <el-input v-model="product.name" :disabled="!isEditMode" />
@@ -76,21 +76,23 @@
               </div>
             </div>
             <div v-else>
-              <el-row :gutter="30">
-                <el-col :span="21">
-                  <el-select v-model="selectedCategories" multiple placeholder="Chọn danh mục" style="width: 100%">
-                    <el-option
-                      v-for="category in allCategories"
-                      :key="category.id"
-                      :label="category.name"
-                      :value="category.id"
-                    />
-                  </el-select>
-                </el-col>
-                <el-col :span="3">
-                  <el-button type="primary" @click="openModal" class="ml-2">Thêm</el-button>
-                </el-col>
-              </el-row>
+              <el-form-item>
+                <el-select v-model="selectedCategories" multiple placeholder="Chọn danh mục"
+                           style="width: 430px; margin-right: 20px"
+                           collapse-tags
+                           clearable
+                           collapse-tags-tooltip
+                           :max-collapse-tags="4"
+                >
+                  <el-option
+                    v-for="category in allCategories"
+                    :key="category.categoryCode"
+                    :label="category.name"
+                    :value="category.id"
+                  />
+                </el-select>
+                <el-button type="primary" @click="openModal" class="ml-2">Thêm</el-button>
+              </el-form-item>
             </div>
           </el-form-item>
           <el-form-item label="Mô tả">
@@ -141,7 +143,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, reactive } from 'vue'
+import { ref, onMounted, reactive, watch } from 'vue'
 import axios from 'axios'
 import { ElNotification, type FormInstance, type FormRules } from 'element-plus'
 
@@ -184,9 +186,9 @@ const ruleForm = reactive<RuleForm>({
   status: 0,
   description: '',
   images: [],
-  categoryIds: []
+  categoryIds: selectedCategories.value
 });
-
+const listCategoryIds = ref<number[]>([])
 
 const originalImagePaths = ref<string[]>([])
 const originalImages = ref<string[]>([]) // Lưu trữ hình ảnh cũ
@@ -211,7 +213,7 @@ const fetchProductDetail = async () => {
 
       if (product.value) {
         selectedCategories.value = product.value.categories.map((category: Category) => category.id)
-
+        listCategoryIds.value = allCategories.value.map(category => category.id)
         // Lưu trữ các đường dẫn hình ảnh cũ
         originalImagePaths.value = product.value.images.map((image: any) => image.imagePath)
 
@@ -299,6 +301,7 @@ const addNewCategory = () => {
 
     // Thêm danh mục mới vào danh sách tất cả các danh mục
     allCategories.value.push(newCategoryItem);
+    ruleForm.listCategory.push(newCategoryItem);
 
     // Chọn danh mục mới thêm vào dropdown danh sách danh mục đã chọn
     selectedCategories.value.push(tempId);
@@ -369,10 +372,9 @@ const submitForm = async () => {
     ...newCategories // Thêm danh mục mới vào listCategory
   ];
 
-  // Danh mục ID cho sản phẩm (bao gồm chỉ các ID danh mục hợp lệ)
-  const validCategoryIds = existingCategoryIds.filter(id =>
-    allCategories.value.some(category => category.id === id)
-  );
+  const validCategoryIds = ruleForm.categoryIds.filter(id => listCategoryIds.value.includes(id));
+  ruleForm.categoryIds = validCategoryIds;
+
 
   // Thêm chi tiết sản phẩm và danh mục vào FormData
   formData.append('product', JSON.stringify({
@@ -382,7 +384,7 @@ const submitForm = async () => {
     price: ruleForm.price,
     quantity: ruleForm.quantity,
     status: ruleForm.status,
-    categoryIds: validCategoryIds, // Chỉ bao gồm ID của các danh mục hợp lệ
+    categoryIds: ruleForm.categoryIds, // Chỉ bao gồm ID của các danh mục hợp lệ
     listCategory: ruleForm.listCategory // Danh sách các danh mục mới và cũ
   }));
 
@@ -400,7 +402,7 @@ const submitForm = async () => {
 
   try {
     // Gửi yêu cầu PUT để cập nhật sản phẩm
-    await axios.put(`http://localhost:8080/api/product/update/${props.productId}`, formData, {
+    await axios.put(`http://localhost:8080/api/product/update`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
@@ -422,9 +424,6 @@ const submitForm = async () => {
     });
   }
 };
-
-
-
 
 const blobURLtoFile = async (blobURL: string, filename: string): Promise<File> => {
   try {
@@ -479,6 +478,9 @@ const rules = reactive<FormRules<RuleForm>>({
   ]
 });
 
+watch(selectedCategories, (newVal) => {
+  ruleForm.categoryIds = newVal
+})
 const resetForm = (formEl: FormInstance | undefined) => {
   if (formEl) {
     formEl.resetFields()

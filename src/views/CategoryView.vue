@@ -28,7 +28,7 @@
                 :icon="Download"
                 :style="{ backgroundColor: '#79bbff' }"
                 style="height: 40px; color: white"
-                @click="exportProducts"
+                @click="exportCategories"
               >
                 Xuất danh sách
               </el-button>
@@ -48,9 +48,10 @@
             v-bind="item.props"
             :categoryId="currentCategoryId"
             :listCategory="listCategory"
-            @edit-category="handleEditProduct"
-            @view-category="handleViewProduct"
-            @add-category-success="handleAddProductSuccess"
+            @edit-category="handleEditCategory"
+            @view-category="handleViewCategory"
+            @refresh-list="fetchCategories"
+            @add-category-success="handleAddCategorySuccess"
           />
         </el-tab-pane>
       </el-tabs>
@@ -61,7 +62,7 @@
         @size-change="handlePageSizeChange"
         :current-page="currentPages"
         :page-size="pageSize"
-        :total="totalProduct"
+        :total="totalCategory"
         layout="total, sizes, prev, pager, next, jumper"
         :page-sizes="[10, 20, 30, 50]"
         class="mt-3"
@@ -73,15 +74,13 @@
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue'
 import axios from 'axios'
-import AddProduct from '@/components/Product/AddProduct.vue'
-import ProductDetail from '@/components/Product/ProductDetail.vue'
-import { Download, Plus, Search } from '@element-plus/icons-vue'
 import AddCategory from '@/components/Category/AddCategory.vue'
-import UpdateCategory from '@/components/Category/UpdateCategory.vue'
 import CategoryTabe from '@/components/Category/CategoryTabe.vue'
+import { Download, Plus, Search } from '@element-plus/icons-vue'
+import UpdateCategory from '@/components/Category/UpdateCategory.vue'
 
 const search = ref('')
-const PRODUCT_URL = 'http://localhost:8080/api/category'
+const CATEGORY_URL = 'http://localhost:8080/api/category'
 const listCategory = ref([])
 const pageSize = ref(5)
 const totalCategory = ref(0)
@@ -96,10 +95,11 @@ const defaultTab = {
 
 const currentCategoryId = ref<number | null>(null)
 
-const fetchCategory = async (page = 1) => {
+const fetchCategories = async (page = 1, searchTerm = '') => {
   try {
-    const { data } = await axios.get(PRODUCT_URL, {
+    const { data } = await axios.get(`${CATEGORY_URL}/search`, {
       params: {
+        name: searchTerm,
         page: page - 1,
         size: pageSize.value,
       }
@@ -113,17 +113,17 @@ const fetchCategory = async (page = 1) => {
 
 const handlePageChange = (page: number) => {
   currentPages.value = page
-  fetchCategory(page, search.value)
+  fetchCategories(page, search.value)
 }
 
 const handlePageSizeChange = (size: number) => {
   pageSize.value = size
-  fetchCategory(1, search.value)
+  fetchCategories(1, search.value)
 }
 
 // Theo dõi sự thay đổi của `search` và gọi API tương ứng
 watch(search, (newValue) => {
-  fetchCategory(1, newValue)
+  fetchCategories(1, newValue)
 })
 
 type Tab = {
@@ -168,40 +168,40 @@ const handleTabRemove = (targetName: string) => {
   editableTabs.value = tabs.filter((tab) => tab.name !== targetName)
 }
 
-const handleEditProduct = (category: any) => {
+const handleEditCategory = (category: any) => {
   currentCategoryId.value = category.id
   addTab('Sửa danh mục', UpdateCategory, { isEditMode: true })
 }
 
-const handleViewProduct = (category: any) => {
+const handleViewCategory = (category: any) => {
   currentCategoryId.value = category.id
   addTab('Chi tiết danh mục', UpdateCategory, { isEditMode: false })
 }
 
-const handleAddProductSuccess = () => {
-  editableTabs.value = editableTabs.value.filter(tab => tab.name !== 'AddProduct')
+const handleAddCategorySuccess = () => {
+  editableTabs.value = editableTabs.value.filter(tab => tab.name !== 'AddCategory')
   editableTabsValue.value = defaultTabName
-  fetchCategory()
+  fetchCategories()
 }
 
-const exportProducts = async () => {
+const exportCategories = async () => {
   try {
-    const response = await axios.get(`${PRODUCT_URL}/export`, {
+    const response = await axios.get(`${CATEGORY_URL}/export`, {
       responseType: 'blob'
     })
     const url = window.URL.createObjectURL(new Blob([response.data]))
     const link = document.createElement('a')
     link.href = url
-    link.setAttribute('download', 'categorys.xlsx')
+    link.setAttribute('download', 'categories.xlsx')
     document.body.appendChild(link)
     link.click()
   } catch (error) {
-    console.error('Error exporting categorys:', error)
+    console.error('Error exporting categories:', error)
   }
 }
 
 onMounted(() => {
-  fetchCategory()
+  fetchCategories()
 })
 </script>
 

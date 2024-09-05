@@ -1,18 +1,28 @@
 <template>
   <div class="container">
     <div class="left-side">
-      <el-upload
-        class="upload-demo"
-        drag
-        action="#"
-        :auto-upload="false"
-        :file-list="fileList"
-        :on-change="handleFileChange"
-        :before-remove="beforeRemove"
-      >
-        <i class="el-icon-upload"></i>
-        <div class="el-upload__text">Drag files here or click to upload</div>
-      </el-upload>
+      <div class="custom-file-upload">
+        <input type="file" id="fileInput" multiple @change="handleFileChange" />
+        <label for="fileInput">
+          <i class="el-icon-upload"></i>
+          <div class="upload-text">Drag files here or click to upload</div>
+        </label>
+      </div>
+      <div v-if="fileList.length > 0" class="image-preview">
+        <div v-for="(file, index) in fileList" :key="index" class="image-item">
+          <img :src="file.preview" alt="preview" />
+          <el-popconfirm
+            title="Are you sure you want to remove this image?"
+            @confirm="removeImage(index)"
+            @cancel="handleCancel"
+            placement="top"
+          >
+            <template #reference>
+              <el-button type="danger" :icon="Delete" circle class="remove-icon"/>
+            </template>
+          </el-popconfirm>
+        </div>
+      </div>
 
       <div class="text">
         <p><strong>Name:</strong> {{ form.name }}</p>
@@ -21,7 +31,7 @@
         <p>
           <strong>Status:</strong>
           <span :class="form.status ? 'success' : 'danger'">
-          {{ form.status ? ' Active' : ' Inactive' }}
+            {{ form.status ? ' Active' : ' Inactive' }}
           </span>
         </p>
       </div>
@@ -38,13 +48,22 @@
           <el-input v-model="form.categoryCode" />
         </el-form-item>
         <el-form-item label="Status" prop="status">
-          <el-select v-model="form.status">
-            <el-option label="Active" value="1" />
-            <el-option label="Inactive" value="0" />
-          </el-select>
+          <el-radio-group v-model="form.status">
+            <el-radio label="1">Active</el-radio>
+            <el-radio label="0">Inactive</el-radio>
+          </el-radio-group>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="submitCategory">Submit</el-button>
+          <el-popconfirm
+            title="Are you sure you want to submit this category?"
+            @confirm="submitCategory"
+            @cancel="handleCancelSubmit"
+            placement="top"
+          >
+            <template #reference>
+              <el-button type="primary">Submit</el-button>
+            </template>
+          </el-popconfirm>
         </el-form-item>
       </el-form>
     </div>
@@ -54,7 +73,8 @@
 <script setup>
 import { ref } from 'vue';
 import axios from 'axios';
-import { ElMessage } from 'element-plus';
+import { ElButton, ElMessage, ElPopconfirm } from 'element-plus'
+import { Delete } from '@element-plus/icons-vue'
 
 const form = ref({
   name: '',
@@ -64,29 +84,54 @@ const form = ref({
 });
 
 const fileList = ref([]);
+const formRef = ref(null);
 
 const rules = {
-  name: [{ required: true, message: 'Please input product name', trigger: 'blur' }],
-  description: [{ required: true, message: 'Please input description', trigger: 'blur' }],
-  categoryCode: [{ required: true, message: 'Please input category code', trigger: 'blur' }],
-  status: [{ required: true, message: 'Please select status', trigger: 'change' }],
+  name: [
+    { required: true, message: 'Please input product name', trigger: 'blur' },
+    { min: 3, max: 100, message: 'Product name must be between 3 and 100 characters', trigger: 'blur' }
+  ],
+  description: [
+    { required: true, message: 'Please input description', trigger: 'blur' },
+    { min: 3, max: 100, message: 'Description must be between 3 and 100 characters', trigger: 'blur' }
+  ],
+  categoryCode: [
+    { required: true, message: 'Please input category code', trigger: 'blur' },
+    { min: 3, max: 100, message: 'Category code must be between 3 and 100 characters', trigger: 'blur' }
+  ],
+  status: [
+    { required: true, message: 'Please select status', trigger: 'change' }
+  ]
 };
 
-const handleFileChange = (file, fileList) => {
-  fileList.value = fileList;
+const handleFileChange = (event) => {
+  const files = Array.from(event.target.files);
+  fileList.value = files.map(file => {
+    return {
+      file,
+      preview: URL.createObjectURL(file)
+    };
+  });
 };
 
-const beforeRemove = (file, fileList) => {
-  return confirm(`Are you sure to remove ${file.name}?`);
+const removeImage = (index) => {
+  fileList.value.splice(index, 1);
+};
+
+const handleCancel = () => {
+  ElMessage.info('Removal canceled');
+};
+
+const handleCancelSubmit = () => {
+  ElMessage.info('Submission canceled');
 };
 
 const submitCategory = async () => {
-  const formRef = $refs.formRef;
-  formRef.validate(async (valid) => {
+  const formRefValue = formRef.value;
+  formRefValue.validate(async (valid) => {
     if (valid) {
       const formData = new FormData();
 
-      // Thay thế giá trị trong categoryData bằng dữ liệu thực tế của bạn
       const categoryData = {
         name: form.value.name,
         description: form.value.description,
@@ -94,13 +139,11 @@ const submitCategory = async () => {
         status: form.value.status,
       };
 
-      // Chuyển đổi dữ liệu thành JSON và thêm vào FormData
       formData.append('category', JSON.stringify(categoryData));
 
-      // Thay thế path_to_your_file bằng đường dẫn thực tế đến tệp tin
       if (fileList.value.length > 0) {
         fileList.value.forEach(file => {
-          formData.append('files', file.raw);
+          formData.append('files', file.file);
         });
       }
 
@@ -112,6 +155,15 @@ const submitCategory = async () => {
         });
         ElMessage.success('Category created successfully');
         console.log('Response:', response.data);
+
+        // Reset form and image preview
+        form.value = {
+          name: '',
+          description: '',
+          categoryCode: '',
+          status: '',
+        };
+        fileList.value = [];
       } catch (error) {
         console.error('Error:', error.response ? error.response.data : error.message);
         ElMessage.error('Error creating category');
@@ -120,12 +172,13 @@ const submitCategory = async () => {
       ElMessage.error('Form validation failed');
     }
   });
-}
+};
 </script>
 
 <style scoped>
 .container {
   display: flex;
+  gap: 20px;
 }
 
 .left-side {
@@ -138,24 +191,89 @@ const submitCategory = async () => {
   padding: 20px;
 }
 
-.upload-demo {
+.custom-file-upload {
+  position: relative;
+  display: inline-block;
   width: 100%;
-  border: 1px dashed #dcdfe6;
+  border: 2px dashed #dcdfe6;
   border-radius: 6px;
   padding: 20px;
   text-align: center;
-}
-.upload-demo i {
-  font-size: 28px;
-  color: #409EFF;
-}
-.upload-demo .el-upload__text {
-  color: #999;
-  font-size: 14px;
+  cursor: pointer;
+  background-color: #f5f5f5;
+  transition: background-color 0.3s;
 }
 
-.text {
-  margin-top: 20px;
+.custom-file-upload:hover {
+  background-color: #e0e0e0;
+}
+
+.custom-file-upload input[type="file"] {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.custom-file-upload label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #409EFF;
+}
+
+.custom-file-upload .upload-text {
+  color: #999;
   font-size: 14px;
+  margin-top: 10px;
+}
+
+.image-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.image-item {
+  position: relative;
+  width: calc(25% - 10px); /* 4 images per row, adjust based on gap */
+  box-sizing: border-box;
+}
+
+.image-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.remove-icon {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background: rgba(255, 0, 0, 0.7);
+  border-radius: 50%;
+  color: white;
+  padding: 5px;
+  cursor: pointer;
+}
+
+.text p {
+  margin: 10px 0;
+}
+
+.success {
+  color: green;
+}
+
+.danger {
+  color: red;
 }
 </style>

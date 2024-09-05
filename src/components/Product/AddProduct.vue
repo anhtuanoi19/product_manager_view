@@ -181,6 +181,8 @@ const form = reactive({
   status: false
 })
 
+const emit = defineEmits(['productAdded'])
+
 const getCategoryNames = () => {
   return ruleForm.category.map(catId => {
     const category = categoryOptions.value.find(option => option.id === catId)
@@ -226,7 +228,6 @@ const ruleForm = reactive<RuleForm>({
   images: []
 });
 
-
 const submitForm = async (formEl: FormInstance | undefined) => {
   if (!formEl) return
 
@@ -237,31 +238,25 @@ const submitForm = async (formEl: FormInstance | undefined) => {
 
   await formEl.validate(async (valid) => {
     if (valid) {
-      // Tạo đối tượng FormData và thêm dữ liệu sản phẩm
       const formData = new FormData()
-
-      // Thêm dữ liệu sản phẩm dưới dạng JSON
       formData.append('product', JSON.stringify({
         name: ruleForm.name,
         description: ruleForm.description,
         price: ruleForm.price,
         quantity: ruleForm.quantity,
         status: ruleForm.status,
-        createdDate: new Date().toISOString(), // Thay đổi ngày giờ nếu cần
-        modifiedDate: new Date().toISOString(), // Thay đổi ngày giờ nếu cần
-        createdBy: 'admin', // Điều chỉnh theo người tạo nếu cần
-        modifiedBy: 'admin', // Điều chỉnh theo người sửa nếu cần
+        createdDate: new Date().toISOString(),
+        modifiedDate: new Date().toISOString(),
+        createdBy: 'admin',
+        modifiedBy: 'admin',
         categories: validCategories,
-        images: [] // Thay đổi nếu bạn cần gửi dữ liệu hình ảnh khác
+        images: []
       }))
-
-      // Thêm các tệp tin vào FormData
       ruleForm.images.forEach((file) => {
         formData.append('files', file)
       })
 
       try {
-        // Gửi yêu cầu POST đến API
         await axios.post(`${PRODUCT_URL}/create`, formData, {
           headers: {
             'Content-Type': 'multipart/form-data'
@@ -275,6 +270,9 @@ const submitForm = async (formEl: FormInstance | undefined) => {
 
         dialogVisible.value = false
         resetForm(formEl)
+
+        // Gửi sự kiện productAdded lên parent component
+        emit('productAdded')
 
       } catch (error) {
         ElNotification({
@@ -344,7 +342,7 @@ const addCategory = () => {
     categoryCode: form.categoryCode,
     name: form.name,
     description: form.description,
-    status: form.status ? 'active' : 'inactive', // Adjust status to match Category type
+    status: form.status ? '1' : '0', // Adjust status to match Category type
     id: categoryOptions.value.length + 1 // Fake ID for the new category
   };
 
@@ -374,7 +372,6 @@ const rules = reactive<FormRules<RuleForm>>({
   name: [
     { required: true, message: 'Vui lòng nhập tên sản phẩm', trigger: 'blur' },
     { max: 100, message: 'Tên sản phẩm không được vượt quá 100 ký tự', trigger: 'blur' },
-
   ],
   price: [
     { required: true, message: 'Vui lòng nhập giá', trigger: 'blur' },
@@ -469,4 +466,3 @@ onMounted(() => {
   color: #fc8484;
 }
 </style>
-

@@ -59,10 +59,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, reactive } from 'vue'
 import { useRoute } from 'vue-router';
 import axios from 'axios';
 
+// Form state
 const form = ref({
   id: '',
   name: '',
@@ -74,6 +75,7 @@ const form = ref({
 // Lưu trữ URL của ảnh cũ
 const oldImages = ref([]);
 
+// Props
 const props = defineProps({
   categoryId: {
     type: Number,
@@ -81,10 +83,25 @@ const props = defineProps({
   }
 });
 
+// Validation rules
+const rules = {
+  name: [
+    { required: true, message: 'Please input product name', trigger: 'blur' },
+    { min: 3, max: 100, message: 'Product name must be between 3 and 100 characters', trigger: 'blur' }
+  ],
+  description: [
+    { required: true, message: 'Please input description', trigger: 'blur' },
+    { min: 3, max: 100, message: 'Description must be between 3 and 100 characters', trigger: 'blur' }
+  ],
+  status: [
+    { required: true, message: 'Please select status', trigger: 'change' }
+  ]
+};
+
+// Fetch category data
 const getImageUrl = (imagePath) => {
   if (imagePath) {
-    const fileName = imagePath.split('/').pop();
-    return `http://localhost:8080/api/images/${fileName}`;
+    return `http://localhost:8080/api/images/${imagePath.split('/').pop()}`;
   }
   return '';
 };
@@ -95,42 +112,60 @@ onMounted(async () => {
   const id = props.categoryId;
   try {
     const response = await axios.get(`http://localhost:8080/api/category/findById/${id}`);
-    form.value = response.data.result;
+    const result = response.data.result;
 
-    console.log(response.data.result);
-    // Giả sử URL của ảnh cũ nằm trong `imageUrls`
-    oldImages.value = response.data.result.images || [];
+    // Update form with fetched data
+    form.value.id = result.id;
+    form.value.categoryCode = result.categoryCode;
+    form.value.name = result.name;
+    form.value.description = result.description;
+    form.value.status = result.status;
+
+    // Update old images
+    oldImages.value = result.images.map(img => img.imagePath) || [];
   } catch (error) {
     console.error('Error fetching category:', error);
   }
 });
 
+const formRef = ref(null);
+
+// Handle form submission
 const submitCategory = async () => {
-  const formData = new FormData();
+  const formEl = formRef.value;
+  if (!formEl) return;
 
-  const categoryData = {
-    name: form.value.name,
-    description: form.value.description,
-    categoryCode: form.value.categoryCode,
-    status: form.value.status,
-  };
+  formEl.validate(async (valid) => {
+    if (valid) {
+      const formData = new FormData();
 
-  formData.append('category', JSON.stringify(categoryData));
-  const fileInput = document.querySelector('input[type="file"]');
-  if (fileInput.files.length > 0) {
-    formData.append('files', fileInput.files[0]);
-  }
+      const categoryData = {
+        name: form.value.name,
+        description: form.value.description,
+        categoryCode: form.value.categoryCode,
+        status: form.value.status,
+      };
 
-  try {
-    await axios.put(`http://localhost:8080/api/category/update/${form.value.id}`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
+      formData.append('category', JSON.stringify(categoryData));
+      const fileInput = document.querySelector('input[type="file"]');
+      if (fileInput && fileInput.files.length > 0) {
+        formData.append('files', fileInput.files[0]);
       }
-    });
-    alert('Category updated successfully');
-  } catch (error) {
-    console.error('Error updating category:', error);
-  }
+
+      try {
+        await axios.put(`http://localhost:8080/api/category/update/${form.value.id}`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        });
+        alert('Category updated successfully');
+      } catch (error) {
+        console.error('Error updating category:', error);
+      }
+    } else {
+      console.error('Form validation failed');
+    }
+  });
 };
 </script>
 
