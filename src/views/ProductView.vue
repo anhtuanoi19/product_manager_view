@@ -16,15 +16,47 @@
           :name="item.name"
         >
           <div v-if="editableTabsValue === defaultTabName" class="search-container">
-            <el-input
-              v-model="search"
-              style="width: 340px"
-              size="large"
-              placeholder="Tìm kiếm sản phẩm"
-              :suffix-icon="Search"
-              @input="searchProducts"
-            />
+            <div class="input-container">
+              <el-input
+                v-model="search.name"
+                style="width: 200px"
+                size="large"
+                placeholder="Tên sản phẩm"
+                :suffix-icon="Search"
+              />
+              <el-input
+                v-model="search.productCode"
+                style="width: 200px"
+                size="large"
+                placeholder="Mã sản phẩm"
+                :suffix-icon="Search"
+              />
+              <el-date-picker
+                v-model="search.startDate"
+                type="date"
+                placeholder="Ngày bắt đầu"
+                style="width: 200px"
+              />
+              <el-date-picker
+                v-model="search.endDate"
+                type="date"
+                placeholder="Ngày kết thúc"
+                style="width: 200px"
+              />
+              <el-radio-group v-model="search.status" style="margin-left: 20px;">
+                <el-radio :label="'0'">Hết</el-radio>
+                <el-radio :label="'1'">Còn</el-radio>
+              </el-radio-group>
+            </div>
             <div class="button-container">
+              <el-button
+                :icon="Search"
+                :style="{ backgroundColor: '#79bbff' }"
+                style="height: 40px; color: white"
+                @click="searchProducts"
+              >
+                Tìm kiếm
+              </el-button>
               <el-button
                 :icon="Download"
                 :style="{ backgroundColor: '#79bbff' }"
@@ -80,7 +112,13 @@ import AddProduct from '@/components/Product/AddProduct.vue';
 import ProductDetail from '@/components/Product/ProductDetail.vue';
 import { Download, Plus, Search } from '@element-plus/icons-vue';
 
-const search = ref('');
+const search = ref({
+  name: '',
+  productCode: '',
+  startDate: null as Date | null,
+  endDate: null as Date | null,
+  status: '1' // Mặc định là 'Còn'
+});
 const PRODUCT_URL = 'http://localhost:8080/api/product';
 const listProduct = ref([]);
 const pageSize = ref(5);
@@ -98,11 +136,15 @@ const currentProductId = ref<number | null>(null);
 
 const fetchProduct = async (page = 1) => {
   try {
-    const { data } = await axios.get(`${PRODUCT_URL}/findByName`, {
+    const { data } = await axios.get(`${PRODUCT_URL}/search`, {
       params: {
         page: page - 1,
         size: pageSize.value,
-        productName: search.value // Add search parameter
+        name: search.value.name,
+        productCode: search.value.productCode,
+        startDate: search.value.startDate ? search.value.startDate.toISOString().split('T')[0] : undefined,
+        endDate: search.value.endDate ? search.value.endDate.toISOString().split('T')[0] : undefined,
+        status: search.value.status
       }
     });
     listProduct.value = data.result.content;
@@ -214,12 +256,20 @@ watch(search, (newSearch) => {
 });
 </script>
 
+
 <style scoped>
 .search-container {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   margin-bottom: 16px;
+}
+
+.input-container {
+  display: flex;
+  flex-wrap: wrap; /* Allow wrapping */
+  gap: 10px; /* Spacing between elements */
+  align-items: center; /* Align items in the center vertically */
 }
 
 .button-container {
@@ -233,3 +283,4 @@ watch(search, (newSearch) => {
   margin-top: 16px;
 }
 </style>
+

@@ -58,6 +58,20 @@
             </el-button>
           </div>
         </div>
+
+        <div class="text" v-if="isEditMode">
+          <p><strong>Name:</strong> {{ruleForm.name}}</p>
+          <p><strong>Price:</strong> {{ruleForm.price}}</p>
+          <p><strong>Category Name:</strong> {{ruleForm.productCode}}</p>
+          <p><strong>Quantity:</strong>{{ruleForm.quantity}}</p>
+          <p><strong>Description:</strong>{{ruleForm.description}}</p>
+          <p>
+            <strong>Status:</strong>
+            <span :class="ruleForm.status ? 'status-active' : 'status-inactive'">
+          {{ ruleForm.status ? ' Active' : ' Inactive' }}
+          </span>
+          </p>
+        </div>
       </el-col>
 
       <!-- Phần thông tin sản phẩm -->
@@ -176,7 +190,8 @@ const newCategory = ref({
   status: '1'
 })
 const showCategoryModal = ref(false)
-
+const oldImages = ref([]); // { id, imagePath }
+const imagesIds = ref([]); // Danh sách ID của ảnh cũ
 const ruleForm = reactive<RuleForm>({
   name: '',
   price: 0,
@@ -195,6 +210,7 @@ const originalImages = ref<string[]>([]) // Lưu trữ hình ảnh cũ
 const fetchProductDetail = async () => {
   try {
     const { data } = await axios.get(`http://localhost:8080/api/product/findById/${props.productId}`)
+    const result = data.result;
     product.value = data.result
     ruleForm.name = data.result.name
     ruleForm.price = data.result.price
@@ -210,7 +226,11 @@ const fetchProductDetail = async () => {
     if (props.isEditMode) {
       const categoryResponse = await axios.get('http://localhost:8080/api/category/findAll')
       allCategories.value = categoryResponse.data.result
+      oldImages.value = product.value.images
+      imagesIds.value = product.value.images.map((image: any) => image.id)
 
+      // Hiển thị hình ảnh cũ
+      newImagePreviews.value = product.value.images.map((image: any) => getImageUrl(image.imagePath))
       if (product.value) {
         selectedCategories.value = product.value.categories.map((category: Category) => category.id)
         listCategoryIds.value = allCategories.value.map(category => category.id)
@@ -227,43 +247,28 @@ const fetchProductDetail = async () => {
     console.error('Error fetching product details:', err)
   }
 }
-
-
-
-// Khi người dùng thêm hình ảnh mới
 const handleFileChange = (event: Event) => {
   const input = event.target as HTMLInputElement
   if (input.files) {
     newImagePreviews.value = [
-      ...newImagePreviews.value, // Keep existing previews
+      ...newImagePreviews.value,
       ...Array.from(input.files).map(file => URL.createObjectURL(file))
     ]
   }
 }
 
-// Khi người dùng xóa hình ảnh mới
 const removeNewImage = (index: number) => {
   newImagePreviews.value.splice(index, 1)
 }
 
-// Khi người dùng xóa hình ảnh cũ
 const removeOldImage = (index: number) => {
   if (product.value) {
     const imagePath = product.value.images[index].imagePath
     product.value.images.splice(index, 1)
-    // Cập nhật hình ảnh cũ
-    originalImages.value = originalImages.value.filter(image => image !== getImageUrl(imagePath))
+    imagesIds.value = imagesIds.value.filter(id => id !== product.value.images[index].id)
+    newImagePreviews.value = newImagePreviews.value.filter(image => image !== getImageUrl(imagePath))
   }
 }
-
-// Lấy danh sách hình ảnh không bị xóa
-const getUpdatedImages = () => {
-  return {
-    newImages: newImagePreviews.value.filter(image => !originalImages.value.includes(image)),
-    remainingImages: [...originalImages.value]
-  }
-}
-
 
 const getImageUrl = (imagePath: string | null) => {
   if (imagePath) {
@@ -381,7 +386,9 @@ const submitForm = async () => {
     id: props.productId,
     name: ruleForm.name,
     description: ruleForm.description,
+    productCode: ruleForm.productCode,
     price: ruleForm.price,
+    imagesIds: imagesIds.value,
     quantity: ruleForm.quantity,
     status: ruleForm.status,
     categoryIds: ruleForm.categoryIds, // Chỉ bao gồm ID của các danh mục hợp lệ
@@ -389,16 +396,12 @@ const submitForm = async () => {
   }));
 
   // Xử lý upload hình ảnh
-  const imagePromises = newImagePreviews.value.map(async (image) => {
-    if (image.startsWith('blob:')) {
-      const file = await blobURLtoFile(image, 'image.png');
-      formData.append('files', file);
-    } else if (image.startsWith('data:')) {
-      const file = dataURLtoFile(image, 'image.png');
-      formData.append('files', file);
+  const fileInput = document.querySelector('input[type="file"]');
+  if (fileInput && fileInput.files.length > 0) {
+    for (let i = 0; i < fileInput.files.length; i++) {
+      formData.append('images', fileInput.files[i]);
     }
-  });
-  await Promise.all(imagePromises);
+  }
 
   try {
     // Gửi yêu cầu PUT để cập nhật sản phẩm
@@ -424,6 +427,8 @@ const submitForm = async () => {
     });
   }
 };
+
+
 
 const blobURLtoFile = async (blobURL: string, filename: string): Promise<File> => {
   try {

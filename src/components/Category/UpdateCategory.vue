@@ -16,8 +16,9 @@
 
       <!-- Preview old images -->
       <div class="old-images">
-        <div v-for="(image, index) in oldImages" :key="index" class="image-preview">
-          <img :src="getImageUrl(image)" alt="Old image" class="preview-image" />
+        <div v-for="image in oldImages" :key="image.id" class="image-preview">
+          <img :src="getImageUrl(image.imagePath)" alt="Old image" class="preview-image" />
+          <el-button @click="removeImage(image.id)" type="danger" size="mini">Xóa</el-button>
         </div>
       </div>
 
@@ -59,7 +60,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, reactive } from 'vue'
+import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import axios from 'axios';
 
@@ -72,8 +73,9 @@ const form = ref({
   status: '',
 });
 
-// Lưu trữ URL của ảnh cũ
-const oldImages = ref([]);
+// Lưu trữ URL của ảnh cũ và ID ảnh
+const oldImages = ref([]); // { id, imagePath }
+const imagesIds = ref([]); // Danh sách ID của ảnh cũ
 
 // Props
 const props = defineProps({
@@ -121,8 +123,9 @@ onMounted(async () => {
     form.value.description = result.description;
     form.value.status = result.status;
 
-    // Update old images
-    oldImages.value = result.images.map(img => img.imagePath) || [];
+    // Update old images and imagesIds
+    oldImages.value = result.images.map(img => ({ id: img.id, imagePath: img.imagePath })) || [];
+    imagesIds.value = result.images.map(img => img.id) || [];
   } catch (error) {
     console.error('Error fetching category:', error);
   }
@@ -144,12 +147,19 @@ const submitCategory = async () => {
         description: form.value.description,
         categoryCode: form.value.categoryCode,
         status: form.value.status,
+        imgaesIds: imagesIds.value, // Thêm imagesIds vào dữ liệu gửi đi
+        modifiedBy: 'admin',
+        createdBy: 'admin'
       };
 
       formData.append('category', JSON.stringify(categoryData));
+
+      // Xử lý ảnh tải lên
       const fileInput = document.querySelector('input[type="file"]');
       if (fileInput && fileInput.files.length > 0) {
-        formData.append('files', fileInput.files[0]);
+        for (let i = 0; i < fileInput.files.length; i++) {
+          formData.append('images', fileInput.files[i]);
+        }
       }
 
       try {
@@ -166,6 +176,12 @@ const submitCategory = async () => {
       console.error('Form validation failed');
     }
   });
+};
+
+// Xóa ảnh
+const removeImage = (imageId) => {
+  imagesIds.value = imagesIds.value.filter(id => id !== imageId); // Xóa ID ảnh
+  oldImages.value = oldImages.value.filter(img => img.id !== imageId); // Xóa ảnh cũ
 };
 </script>
 

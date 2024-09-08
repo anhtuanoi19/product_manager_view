@@ -16,13 +16,62 @@
           :name="item.name"
         >
           <div v-if="editableTabsValue === defaultTabName" class="search-container">
-            <el-input
-              v-model="search"
-              style="width: 340px"
-              size="large"
-              placeholder="Tìm kiếm danh mục"
-              :suffix-icon="Search"
-            />
+          <el-row gutter="30">
+            <el-col span="6">
+              <el-input
+                v-model="searchName"
+                style="max-width: 100%"
+                placeholder="Tên danh mục"
+                class="input-with-select"
+              >
+                <template #append>
+                  <el-button :icon="Search" @click="getAllCategory()"/>
+                </template>
+              </el-input>
+            </el-col>
+            <el-col span="6">
+              <el-input
+                v-model="categoryCode"
+                style="max-width: 100%"
+                placeholder="Mã danh mục"
+                class="input-with-select"
+              >
+                <template #append>
+                  <el-button :icon="Search" @click="getAllCategory()"/>
+                </template>
+              </el-input>
+            </el-col>
+            <el-col span="12">
+              <el-date-picker
+                v-model="startDate"
+                type="datetime"
+                placeholder="Ngày bắt đầu"
+                format="YYYY-MM-DD HH:mm:ss"
+                date-format="MMM DD, YYYY"
+                time-format="HH:mm"
+              />
+            </el-col>
+              <el-col span="12">
+                <el-date-picker
+                  v-model="endDate"
+                  type="datetime"
+                  placeholder="Ngày kết thúc"
+                  format="YYYY-MM-DD HH:mm:ss"
+                  date-format="MMM DD, YYYY"
+                  time-format="HH:mm"
+                />
+              </el-col>
+              <el-button :icon="Search" @click="getAllCategory()"/>
+          </el-row>
+
+
+
+            <div class="mb-2 ml-4">
+              <el-radio-group v-model="status">
+                <el-radio value="1" size="large" @change="getAllCategory" >Còn</el-radio>
+                <el-radio value="0" size="large" @change="getAllCategory">Hết</el-radio>
+              </el-radio-group>
+            </div>
             <div class="button-container">
               <el-button
                 :icon="Download"
@@ -50,34 +99,37 @@
             :listCategory="listCategory"
             @edit-category="handleEditCategory"
             @view-category="handleViewCategory"
-            @refresh-list="fetchCategories"
+            @refresh-list="getAllCategory"
             @add-category-success="handleAddCategorySuccess"
           />
         </el-tab-pane>
       </el-tabs>
 
       <el-pagination
-        v-if="editableTabsValue === defaultTabName"
-        @current-change="handlePageChange"
-        @size-change="handlePageSizeChange"
-        :current-page="currentPages"
-        :page-size="pageSize"
-        :total="totalCategory"
-        layout="total, sizes, prev, pager, next, jumper"
-        :page-sizes="[10, 20, 30, 50]"
         class="mt-3"
+        v-model:current-page="page.currentPage"
+        v-model:page-size="page.pageSize"
+        :page-sizes="[1, 5, 10]"
+        :size="size"
+        :background="true"
+        layout="total, sizes, prev, pager, next"
+        :total="page.totalElement"
+        @size-change="handleSizeChange"
+        @current-change="handleCurrentChange"
       />
     </el-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, reactive } from 'vue'
 import axios from 'axios'
 import AddCategory from '@/components/Category/AddCategory.vue'
 import CategoryTabe from '@/components/Category/CategoryTabe.vue'
 import { Download, Plus, Search } from '@element-plus/icons-vue'
 import UpdateCategory from '@/components/Category/UpdateCategory.vue'
+import type { ComponentSize } from 'element-plus'
+import dayjs from 'dayjs'
 
 const search = ref('')
 const CATEGORY_URL = 'http://localhost:8080/api/category'
@@ -92,39 +144,91 @@ const defaultTab = {
   name: defaultTabName,
   component: CategoryTabe
 }
+const formattedEndDate = ref('')
+const formattedStartDate = ref('')
+
 
 const currentCategoryId = ref<number | null>(null)
 
-const fetchCategories = async (page = 1, searchTerm = '') => {
+const category = ref([])
+const searchName = ref('')
+const size = ref<ComponentSize>('default')
+const visible = ref(false)
+const deleteCategoryId = ref()
+const selectedOptions = ref([]);
+
+const categoryCode = ref('');
+const startDate = ref('')
+const endDate = ref('')
+const status = ref()
+
+const viewFilter = reactive({
+  categoryCode: false,
+  startDate: false,
+  endDate: false,
+});
+
+watch(endDate, (newDate) => {
+  if (newDate) {
+    formattedEndDate.value = dayjs(newDate).format('YYYY-MM-DD') // Định dạng lại thành 'yyyy-MM-dd'
+  }
+})
+
+watch(startDate, (newDate) => {
+  if (newDate) {
+    formattedStartDate.value = dayjs(newDate).format('YYYY-MM-DD') // Định dạng lại thành 'yyyy-MM-dd'
+  }
+})
+
+const page = reactive({
+  currentPage: 1,
+  pageSize: 5,
+  totalElement: 0
+})
+const URL_CATEGORY = "http://localhost:8080/api/category"
+const getAllCategory = async () => {
   try {
-    const { data } = await axios.get(`${CATEGORY_URL}/search`, {
-      params: {
-        name: searchTerm,
-        page: page - 1,
-        size: pageSize.value,
-      }
+    // Giảm currentPage trước khi lấy dữ liệu
+    page.currentPage = Math.max(page.currentPage, 1); // Đảm bảo currentPage không dưới 1
+
+    const params = new URLSearchParams({
+      name: searchName.value,
+      categoryCode: categoryCode.value,
+      status: status.value,
+      page: String(page.currentPage - 1),
+      size: String(page.pageSize)
     })
+    params.append('endDate', formattedEndDate.value)
+    params.append('startDate', formattedStartDate.value)
+    const {data} = await axios.get(`${URL_CATEGORY}/search`, {params})
+
+    category.value = data?.result?.content ?? []
+    page.totalElement = data?.result?.totalElements
+
+    const pageable = data?.result?.pageable
+    page.currentPage = pageable.pageNumber + 1
+    page.pageSize = pageable.pageSize
     listCategory.value = data.result.content
-    totalCategory.value = data.result.totalElements
-  } catch (err) {
-    console.log(err)
+    console.log(data)
+    if (category.value.length === 0) {
+      console.warn('No students found or response structure is incorrect.')
+    }
+  } catch (error) {
+    console.error('Failed to fetch students:', error)
   }
 }
 
-const handlePageChange = (page: number) => {
-  currentPages.value = page
-  fetchCategories(page, search.value)
+const handleSizeChange = (val: number) => {
+  page.pageSize = val
+  page.currentPage = 1
+  getAllCategory()
+  console.log(`${val} items per page`)
 }
-
-const handlePageSizeChange = (size: number) => {
-  pageSize.value = size
-  fetchCategories(1, search.value)
+const handleCurrentChange = (val: number) => {
+  page.currentPage = val
+  getAllCategory()
+  console.log(`current page: ${val}`)
 }
-
-// Theo dõi sự thay đổi của `search` và gọi API tương ứng
-watch(search, (newValue) => {
-  fetchCategories(1, newValue)
-})
 
 type Tab = {
   title: string;
@@ -147,6 +251,15 @@ const addTab = (tabTitle: string, component: any = null, props: Record<string, a
   })
   editableTabsValue.value = newTabName
 }
+const handleEditCategory = (category: any) => {
+  currentCategoryId.value = category.id;
+  addTab('Sửa danh mục', UpdateCategory, { isEditMode: false, category });
+}
+
+const handleViewCategory = (category: any) => {
+  currentCategoryId.value = category.id;
+  addTab('Chi tiết danh mục', UpdateCategory, { isEditMode: true, category });
+}
 
 const handleTabRemove = (targetName: string) => {
   if (targetName === defaultTabName) return
@@ -168,20 +281,11 @@ const handleTabRemove = (targetName: string) => {
   editableTabs.value = tabs.filter((tab) => tab.name !== targetName)
 }
 
-const handleEditCategory = (category: any) => {
-  currentCategoryId.value = category.id
-  addTab('Sửa danh mục', UpdateCategory, { isEditMode: true })
-}
-
-const handleViewCategory = (category: any) => {
-  currentCategoryId.value = category.id
-  addTab('Chi tiết danh mục', UpdateCategory, { isEditMode: false })
-}
 
 const handleAddCategorySuccess = () => {
   editableTabs.value = editableTabs.value.filter(tab => tab.name !== 'AddCategory')
   editableTabsValue.value = defaultTabName
-  fetchCategories()
+  getAllCategory()
 }
 
 const exportCategories = async () => {
@@ -201,7 +305,8 @@ const exportCategories = async () => {
 }
 
 onMounted(() => {
-  fetchCategories()
+  status.value = 1
+  getAllCategory()
 })
 </script>
 

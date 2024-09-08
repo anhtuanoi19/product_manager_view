@@ -62,6 +62,10 @@
           <el-input v-model="ruleForm.name" />
         </el-form-item>
 
+        <el-form-item label="Product Code" prop="productCode">
+          <el-input v-model="ruleForm.productCode" />
+        </el-form-item>
+
         <el-form-item label="Price" prop="price">
           <el-input v-model.number="ruleForm.price" type="number" />
         </el-form-item>
@@ -171,7 +175,7 @@
 
 <script lang="ts" setup>
 import { onMounted, reactive, ref } from 'vue'
-import { ElMessageBox, ElNotification, type FormInstance, type FormRules } from 'element-plus'
+import { ElMessage, ElMessageBox, ElNotification, type FormInstance, type FormRules } from 'element-plus'
 import axios from 'axios'
 
 const form = reactive({
@@ -192,6 +196,7 @@ const getCategoryNames = () => {
 
 interface RuleForm {
   name: string
+  productCode: string
   price: number
   quantity: number
   category: number[]
@@ -220,6 +225,7 @@ const formSize = ref('default')
 const ruleFormRef = ref<FormInstance>()
 const ruleForm = reactive<RuleForm>({
   name: '',
+  productCode: '',
   price: 0,
   quantity: 0,
   category: [],
@@ -227,6 +233,7 @@ const ruleForm = reactive<RuleForm>({
   description: '',
   images: []
 });
+const serverError = ref('');
 
 const submitForm = async (formEl: FormInstance | undefined) => {
   if (!formEl) return
@@ -239,8 +246,9 @@ const submitForm = async (formEl: FormInstance | undefined) => {
   await formEl.validate(async (valid) => {
     if (valid) {
       const formData = new FormData()
-      formData.append('product', JSON.stringify({
+      formData.append('data', JSON.stringify({
         name: ruleForm.name,
+        productCode: ruleForm.productCode,
         description: ruleForm.description,
         price: ruleForm.price,
         quantity: ruleForm.quantity,
@@ -253,11 +261,11 @@ const submitForm = async (formEl: FormInstance | undefined) => {
         images: []
       }))
       ruleForm.images.forEach((file) => {
-        formData.append('files', file)
+        formData.append('images', file)
       })
 
       try {
-        await axios.post(`${PRODUCT_URL}/create`, formData, {
+        const response = await axios.post(`${PRODUCT_URL}/create`, formData, {
           headers: {
             'Content-Type': 'multipart/form-data'
           }
@@ -274,12 +282,9 @@ const submitForm = async (formEl: FormInstance | undefined) => {
         // Gửi sự kiện productAdded lên parent component
         emit('productAdded')
 
-      } catch (error) {
-        ElNotification({
-          title: 'Error',
-          message: 'Failed to create product',
-          type: 'error'
-        })
+      } catch (error: any) {
+        serverError.value = error.response?.data?.message || 'Error creating category';
+        ElMessage.error(error.response ? error.response.data : error.message);
       }
     } else {
       ElNotification({

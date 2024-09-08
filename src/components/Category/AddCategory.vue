@@ -12,56 +12,56 @@
         <div v-for="(file, index) in fileList" :key="index" class="image-item">
           <img :src="file.preview" alt="preview" />
           <el-popconfirm
-            title="Are you sure you want to remove this image?"
+            title="Bạn có chắc chắn muốn xóa ảnh này không?"
             @confirm="removeImage(index)"
             @cancel="handleCancel"
             placement="top"
           >
             <template #reference>
-              <el-button type="danger" :icon="Delete" circle class="remove-icon"/>
+              <el-button type="danger" :icon="Delete" circle class="remove-icon" />
             </template>
           </el-popconfirm>
         </div>
       </div>
 
       <div class="text">
-        <p><strong>Name:</strong> {{ form.name }}</p>
-        <p><strong>Price:</strong> {{ form.categoryCode }}</p>
-        <p><strong>Quantity:</strong> {{ form.description }}</p>
+        <p><strong>Tên danh mục:</strong> {{ form.name }}</p>
+        <p><strong>Mã danh mục:</strong> {{ form.categoryCode }}</p>
+        <p><strong>Mô tả:</strong> {{ form.description }}</p>
         <p>
-          <strong>Status:</strong>
-          <span :class="form.status ? 'success' : 'danger'">
-            {{ form.status ? ' Active' : ' Inactive' }}
+          <strong>Trạng thái:</strong>
+          <span :class="form.status === '1' ? 'success' : 'danger'">
+            {{ form.status === '1' ? 'Kích hoạt' : 'Không kích hoạt' }}
           </span>
         </p>
       </div>
     </div>
     <div class="right-side">
       <el-form :model="form" label-width="120px" :rules="rules" ref="formRef">
-        <el-form-item label="Product Name" prop="name">
-          <el-input v-model="form.name" />
-        </el-form-item>
-        <el-form-item label="Description" prop="description">
-          <el-input v-model="form.description" />
-        </el-form-item>
-        <el-form-item label="Category Code" prop="categoryCode">
+        <el-form-item label="Mã danh mục" prop="categoryCode">
           <el-input v-model="form.categoryCode" />
         </el-form-item>
-        <el-form-item label="Status" prop="status">
+        <el-form-item label="Tên danh mục" prop="name">
+          <el-input v-model="form.name" />
+        </el-form-item>
+        <el-form-item label="Mô tả" prop="description">
+          <el-input v-model="form.description" />
+        </el-form-item>
+        <el-form-item label="Trạng thái" prop="status">
           <el-radio-group v-model="form.status">
-            <el-radio label="1">Active</el-radio>
-            <el-radio label="0">Inactive</el-radio>
+            <el-radio label="1">Kích hoạt</el-radio>
+            <el-radio label="0">Không kích hoạt</el-radio>
           </el-radio-group>
         </el-form-item>
         <el-form-item>
           <el-popconfirm
-            title="Are you sure you want to submit this category?"
+            title="Bạn có chắc chắn muốn thêm danh mục này không?"
             @confirm="submitCategory"
             @cancel="handleCancelSubmit"
             placement="top"
           >
             <template #reference>
-              <el-button type="primary">Submit</el-button>
+              <el-button type="primary">Xác nhận</el-button>
             </template>
           </el-popconfirm>
         </el-form-item>
@@ -73,8 +73,8 @@
 <script setup>
 import { ref } from 'vue';
 import axios from 'axios';
-import { ElButton, ElMessage, ElPopconfirm } from 'element-plus'
-import { Delete } from '@element-plus/icons-vue'
+import { ElButton, ElMessage, ElPopconfirm } from 'element-plus';
+import { Delete } from '@element-plus/icons-vue';
 
 const form = ref({
   name: '',
@@ -88,30 +88,28 @@ const formRef = ref(null);
 
 const rules = {
   name: [
-    { required: true, message: 'Please input product name', trigger: 'blur' },
-    { min: 3, max: 100, message: 'Product name must be between 3 and 100 characters', trigger: 'blur' }
+    { required: true, message: 'Vui lòng nhập tên danh mục', trigger: 'blur' },
+    { min: 3, max: 100, message: 'Tên danh mục phải từ 3 đến 100 ký tự', trigger: 'blur' },
   ],
   description: [
-    { required: true, message: 'Please input description', trigger: 'blur' },
-    { min: 3, max: 100, message: 'Description must be between 3 and 100 characters', trigger: 'blur' }
+    { required: true, message: 'Vui lòng nhập mô tả', trigger: 'blur' },
+    { max: 255, message: 'Mô tả không vượt quá 255 ký tự', trigger: 'blur' },
   ],
   categoryCode: [
-    { required: true, message: 'Please input category code', trigger: 'blur' },
-    { min: 3, max: 100, message: 'Category code must be between 3 and 100 characters', trigger: 'blur' }
+    { required: true, message: 'Vui lòng nhập mã danh mục', trigger: 'blur' },
+    { max: 50, message: 'Mã danh mục không vượt quá 50 ký tự', trigger: 'blur' },
   ],
   status: [
-    { required: true, message: 'Please select status', trigger: 'change' }
-  ]
+    { required: true, message: 'Vui lòng chọn trạng thái', trigger: 'change' },
+  ],
 };
 
 const handleFileChange = (event) => {
   const files = Array.from(event.target.files);
-  fileList.value = files.map(file => {
-    return {
-      file,
-      preview: URL.createObjectURL(file)
-    };
-  });
+  fileList.value = files.map((file) => ({
+    file,
+    preview: URL.createObjectURL(file),
+  }));
 };
 
 const removeImage = (index) => {
@@ -119,19 +117,17 @@ const removeImage = (index) => {
 };
 
 const handleCancel = () => {
-  ElMessage.info('Removal canceled');
+  ElMessage.info('Đã hủy xóa ảnh');
 };
 
 const handleCancelSubmit = () => {
-  ElMessage.info('Submission canceled');
+  ElMessage.info('Đã hủy gửi');
 };
-
+const serverError = ref('');
 const submitCategory = async () => {
-  const formRefValue = formRef.value;
-  formRefValue.validate(async (valid) => {
+  formRef.value.validate(async (valid) => {
     if (valid) {
       const formData = new FormData();
-
       const categoryData = {
         name: form.value.name,
         description: form.value.description,
@@ -139,24 +135,23 @@ const submitCategory = async () => {
         status: form.value.status,
       };
 
-      formData.append('category', JSON.stringify(categoryData));
+      formData.append('data', JSON.stringify(categoryData));
 
       if (fileList.value.length > 0) {
-        fileList.value.forEach(file => {
-          formData.append('files', file.file);
+        fileList.value.forEach((file) => {
+          formData.append('images', file.file);
         });
       }
 
       try {
-        const response = await axios.post('http://localhost:8080/api/category/create', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data'
+        const response = await axios.post(
+          'http://localhost:8080/api/category/create',
+          formData,
+          {
+            headers: { 'Content-Type': 'multipart/form-data' },
           }
-        });
-        ElMessage.success('Category created successfully');
-        console.log('Response:', response.data);
-
-        // Reset form and image preview
+        );
+        ElMessage.success('Đã tạo danh mục thành công');
         form.value = {
           name: '',
           description: '',
@@ -165,11 +160,11 @@ const submitCategory = async () => {
         };
         fileList.value = [];
       } catch (error) {
-        console.error('Error:', error.response ? error.response.data : error.message);
-        ElMessage.error('Error creating category');
+        serverError.value = error.response?.data?.message || 'Error creating category';
+        ElMessage.error(error.response ? error.response.data : error.message);
       }
     } else {
-      ElMessage.error('Form validation failed');
+      ElMessage.error('Vui lòng kiểm tra lại các thông tin nhập vào');
     }
   });
 };
@@ -201,7 +196,6 @@ const submitCategory = async () => {
   text-align: center;
   cursor: pointer;
   background-color: #f5f5f5;
-  transition: background-color 0.3s;
 }
 
 .custom-file-upload:hover {
@@ -242,7 +236,7 @@ const submitCategory = async () => {
 
 .image-item {
   position: relative;
-  width: calc(25% - 10px); /* 4 images per row, adjust based on gap */
+  width: calc(25% - 10px);
   box-sizing: border-box;
 }
 
