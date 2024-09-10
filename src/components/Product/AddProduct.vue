@@ -326,12 +326,12 @@ const removeImage = (index: number) => {
 const categoryRules = reactive({
   categoryCode: [
     { required: true, message: 'Vui lòng nhập mã danh mục', trigger: 'blur' },
-    { max: 100, message: 'Mô tả không được vượt quá 100 ký tự', trigger: 'blur' }
+    { min: 3,max: 100, message: 'Code phải từ 3 đến 100 ký tự', trigger: 'blur' }
 
   ],
   name: [
     { required: true, message: 'Vui lòng nhập tên danh mục', trigger: 'blur' },
-    { max: 100, message: 'Mô tả không được vượt quá 100 ký tự', trigger: 'blur' }
+    { min:3,max: 100, message: 'Mô tả phải từ 3 quá 100 ký tự', trigger: 'blur' }
 
   ],
   description: [
@@ -343,26 +343,38 @@ const categoryRules = reactive({
 const categoryFormRef = ref<FormInstance>()
 
 const addCategory = () => {
-  const newCategory = {
+  // Validate the new category form before adding
+  const isValid = Object.values(form).every(value => value !== '' && value !== undefined);
+  if (!isValid) {
+    ElMessage.error('Please fill all the required fields');
+    return;
+  }
+
+  // Create a new category object
+  const newCategory: Category = {
+    id: Date.now(), // Use a unique ID, such as a timestamp
     categoryCode: form.categoryCode,
     name: form.name,
     description: form.description,
-    status: form.status ? '1' : '0', // Adjust status to match Category type
-    id: categoryOptions.value.length + 1 // Fake ID for the new category
+    status: form.status ? '1' : '0',
   };
 
+  // Add the new category to the category options
   categoryOptions.value.push(newCategory);
 
+  // Add the new category to the ruleForm category list
   ruleForm.category.push(newCategory.id);
 
+  // Clear the form for adding a new category
   form.categoryCode = '';
   form.name = '';
   form.description = '';
   form.status = false;
 
-  // Close the dialog
+  // Close the category dialog
   dialogFormVisible.value = false;
 }
+
 
 const fetchCategoryOptions = async () => {
   try {

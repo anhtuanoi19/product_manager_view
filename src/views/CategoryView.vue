@@ -1,6 +1,7 @@
 <template>
   <div>
     <el-card>
+      {{formatDate(endDate)}}
       <el-tabs
         v-model="editableTabsValue"
         type="card"
@@ -44,28 +45,21 @@
             <el-col span="12">
               <el-date-picker
                 v-model="startDate"
-                type="datetime"
+                type="date"
                 placeholder="Ngày bắt đầu"
-                format="YYYY-MM-DD HH:mm:ss"
-                date-format="MMM DD, YYYY"
-                time-format="HH:mm"
+                value-format="YYYY-MM-DD"
               />
             </el-col>
               <el-col span="12">
                 <el-date-picker
                   v-model="endDate"
-                  type="datetime"
+                  type="date"
                   placeholder="Ngày kết thúc"
-                  format="YYYY-MM-DD HH:mm:ss"
-                  date-format="MMM DD, YYYY"
-                  time-format="HH:mm"
+                  value-format="YYYY-MM-DD"
                 />
               </el-col>
               <el-button :icon="Search" @click="getAllCategory()"/>
           </el-row>
-
-
-
             <div class="mb-2 ml-4">
               <el-radio-group v-model="status">
                 <el-radio value="1" size="large" @change="getAllCategory" >Còn</el-radio>
@@ -124,6 +118,7 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, reactive } from 'vue'
 import axios from 'axios'
+import moment from 'moment';
 import AddCategory from '@/components/Category/AddCategory.vue'
 import CategoryTabe from '@/components/Category/CategoryTabe.vue'
 import { Download, Plus, Search } from '@element-plus/icons-vue'
@@ -149,7 +144,6 @@ const formattedStartDate = ref('')
 
 
 const currentCategoryId = ref<number | null>(null)
-
 const category = ref([])
 const searchName = ref('')
 const size = ref<ComponentSize>('default')
@@ -173,6 +167,9 @@ watch(endDate, (newDate) => {
     formattedEndDate.value = dayjs(newDate).format('YYYY-MM-DD') // Định dạng lại thành 'yyyy-MM-dd'
   }
 })
+const formatDate = (date: any) => {
+  return moment(date).format('DD.MM.YYYY');
+}
 
 watch(startDate, (newDate) => {
   if (newDate) {
@@ -195,11 +192,11 @@ const getAllCategory = async () => {
       name: searchName.value,
       categoryCode: categoryCode.value,
       status: status.value,
+      startDate: startDate.value ? startDate.value : '',
+      endDate: endDate.value ? endDate.value : '',
       page: String(page.currentPage - 1),
       size: String(page.pageSize)
     })
-    params.append('endDate', formattedEndDate.value)
-    params.append('startDate', formattedStartDate.value)
     const {data} = await axios.get(`${URL_CATEGORY}/search`, {params})
 
     category.value = data?.result?.content ?? []
@@ -253,12 +250,12 @@ const addTab = (tabTitle: string, component: any = null, props: Record<string, a
 }
 const handleEditCategory = (category: any) => {
   currentCategoryId.value = category.id;
-  addTab('Sửa danh mục', UpdateCategory, { isEditMode: false, category });
+  addTab('Sửa danh mục', UpdateCategory, { isEditMode: true, category });
 }
 
 const handleViewCategory = (category: any) => {
   currentCategoryId.value = category.id;
-  addTab('Chi tiết danh mục', UpdateCategory, { isEditMode: true, category });
+  addTab('Chi tiết danh mục', UpdateCategory, { isEditMode: false, category });
 }
 
 const handleTabRemove = (targetName: string) => {

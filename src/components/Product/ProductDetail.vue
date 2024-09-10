@@ -17,18 +17,6 @@
               Upload Images
             </el-button>
           </div>
-          <div class="image-grid">
-            <div v-for="(image, index) in newImagePreviews" :key="'new-' + index" class="image-item">
-              <img :src="image" alt="preview" />
-              <el-button
-                type="danger"
-                class="remove-button"
-                @click="removeNewImage(index)"
-              >
-                Remove
-              </el-button>
-            </div>
-          </div>
         </div>
         <div v-if="!isEditMode" class="image-gallery">
           <div class="large-image-container">
@@ -85,8 +73,10 @@
           </el-form-item>
           <el-form-item label="Danh mục">
             <div v-if="!isEditMode">
-              <div v-for="category in product.categories" :key="category.id" class="me-1">
-                <el-tag>{{ category.name || 'Danh mục không có tên' }}</el-tag>
+              <div class="horizontal-tags">
+                <div v-for="category in product.categories" :key="category.id" class="me-1">
+                  <el-tag>{{ category.name || 'Danh mục không có tên' }}</el-tag>
+                </div>
               </div>
             </div>
             <div v-else>
@@ -269,6 +259,8 @@ const removeOldImage = (index: number) => {
     newImagePreviews.value = newImagePreviews.value.filter(image => image !== getImageUrl(imagePath))
   }
 }
+
+
 
 const getImageUrl = (imagePath: string | null) => {
   if (imagePath) {
@@ -479,7 +471,7 @@ const rules = reactive<FormRules<RuleForm>>({
   ],
   description: [
     { required: true, message: 'Vui lòng nhập mô tả', trigger: 'blur' },
-    { max: 255, message: 'Mô tả không được vượt quá 255 ký tự', trigger: 'blur' }
+    { min: 3, max: 255, message: 'Mô tả không được vượt quá 255 ký tự', trigger: 'blur' }
   ]
 });
 
@@ -578,13 +570,14 @@ onMounted(fetchProductDetail)
   bottom: 0;
   right: 0;
 }
-.category-list {
+.horizontal-tags {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: wrap; /* Allows tags to wrap to the next line if they overflow */
+  gap: 8px; /* Adjust the spacing between tags */
 }
 
-.category-item {
-  margin: 5px;
+.horizontal-tags .el-tag {
+  margin: 0; /* Ensure tags do not have extra margin */
 }
 
 </style>

@@ -51,7 +51,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import axios from 'axios'
 
 const props = defineProps({
-  listCategory: Array // Nhận dữ liệu từ parent component
+  listCategory: [] // Nhận dữ liệu từ parent component
 });
 
 const emit = defineEmits<{

@@ -2,6 +2,7 @@
   <div class="container">
     <div class="left-side">
       <el-upload
+        v-if="isEditMode"
         class="upload-demo"
         drag
         action="#"
@@ -18,7 +19,7 @@
       <div class="old-images">
         <div v-for="image in oldImages" :key="image.id" class="image-preview">
           <img :src="getImageUrl(image.imagePath)" alt="Old image" class="preview-image" />
-          <el-button @click="removeImage(image.id)" type="danger" size="mini">Xóa</el-button>
+          <el-button v-if="isEditMode" @click="removeImage(image.id)" type="danger" size="mini">Xóa</el-button>
         </div>
       </div>
 
@@ -40,19 +41,19 @@
           <el-input v-model="form.categoryCode" :disabled="true" />
         </el-form-item>
         <el-form-item label="Product Name" prop="name">
-          <el-input v-model="form.name" />
+          <el-input v-model="form.name" :disabled="!isEditMode" />
         </el-form-item>
         <el-form-item label="Description" prop="description">
-          <el-input v-model="form.description" />
+          <el-input v-model="form.description" :disabled="!isEditMode" />
         </el-form-item>
         <el-form-item label="Status" prop="status">
-          <el-select v-model="form.status">
+          <el-select v-model="form.status" :disabled="!isEditMode">
             <el-option label="Active" value="1" />
             <el-option label="Inactive" value="0" />
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="submitCategory">Submit</el-button>
+          <el-button v-if="isEditMode" type="primary" @click="submitCategory">Submit</el-button>
         </el-form-item>
       </el-form>
     </div>
@@ -82,6 +83,10 @@ const props = defineProps({
   categoryId: {
     type: Number,
     required: true
+  },
+  isEditMode: {
+    type: Boolean,
+    default: false // Default value
   }
 });
 

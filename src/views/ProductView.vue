@@ -31,19 +31,19 @@
                 placeholder="Mã sản phẩm"
                 :suffix-icon="Search"
               />
-              <el-date-picker
-                v-model="search.startDate"
-                type="date"
-                placeholder="Ngày bắt đầu"
-                style="width: 200px"
-              />
-              <el-date-picker
-                v-model="search.endDate"
-                type="date"
-                placeholder="Ngày kết thúc"
-                style="width: 200px"
-              />
-              <el-radio-group v-model="search.status" style="margin-left: 20px;">
+                <el-date-picker
+                  v-model="search.startDate"
+                  type="date"
+                  placeholder="Ngày bắt đầu"
+                  value-format="YYYY-MM-DD"
+                />
+                <el-date-picker
+                  v-model="search.endDate"
+                  type="date"
+                  placeholder="Ngày kết thúc"
+                  value-format="YYYY-MM-DD"
+                />
+              <el-radio-group v-model="search.status" style="margin-left: 20px;"  @change="fetchProduct">
                 <el-radio :label="'0'">Hết</el-radio>
                 <el-radio :label="'1'">Còn</el-radio>
               </el-radio-group>
@@ -135,15 +135,17 @@ const defaultTab = {
 const currentProductId = ref<number | null>(null);
 
 const fetchProduct = async (page = 1) => {
+
   try {
+    page = Math.max(page, 1); // Đảm bảo currentPage không dưới 1
     const { data } = await axios.get(`${PRODUCT_URL}/search`, {
       params: {
         page: page - 1,
         size: pageSize.value,
         name: search.value.name,
         productCode: search.value.productCode,
-        startDate: search.value.startDate ? search.value.startDate.toISOString().split('T')[0] : undefined,
-        endDate: search.value.endDate ? search.value.endDate.toISOString().split('T')[0] : undefined,
+        startDate: search.value.startDate ? search.value.startDate : '',
+        endDate: search.value.endDate ? search.value.endDate : '',
         status: search.value.status
       }
     });

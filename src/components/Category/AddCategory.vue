@@ -93,11 +93,11 @@ const rules = {
   ],
   description: [
     { required: true, message: 'Vui lòng nhập mô tả', trigger: 'blur' },
-    { max: 255, message: 'Mô tả không vượt quá 255 ký tự', trigger: 'blur' },
+    { min: 3, max: 255, message: 'Mô tả phải từ 3 đến 255 ký tự', trigger: 'blur' },
   ],
   categoryCode: [
     { required: true, message: 'Vui lòng nhập mã danh mục', trigger: 'blur' },
-    { max: 50, message: 'Mã danh mục không vượt quá 50 ký tự', trigger: 'blur' },
+    { min: 3, max: 50, message: 'Mã danh mục phải từ 3 đến 50 ký tự', trigger: 'blur' },
   ],
   status: [
     { required: true, message: 'Vui lòng chọn trạng thái', trigger: 'change' },
